@@ -242,3 +242,17 @@
 .animate-smoke {
   animation: smoke 2s ease-out forwards;
 }
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out forwards;
+}
+
+/* Duration utility for transitions */
+.duration-2000 {
+  transition-duration: 2000ms;
+}
