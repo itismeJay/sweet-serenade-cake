@@ -1,93 +1,133 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
-interface SmokeParticle {
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
-  life: number;
-  maxLife: number;
-  size: number;
-}
-
 interface SmokeEffectProps {
   active: boolean;
-  position?: [number, number, number];
+  candlePositions?: [number, number, number][];
 }
 
-export const SmokeEffect = ({ active, position = [0, 1.5, 0] }: SmokeEffectProps) => {
-  const particlesRef = useRef<THREE.Points>(null);
-  const particleData = useRef<SmokeParticle[]>([]);
-  const timeRef = useRef(0);
+const smokeVertexShader = `
+  attribute float size;
+  attribute float opacity;
+  varying float vOpacity;
+  
+  void main() {
+    vOpacity = opacity;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = size * (300.0 / -mvPosition.z);
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
 
-  const particleCount = 50;
+const smokeFragmentShader = `
+  varying float vOpacity;
+  
+  void main() {
+    float dist = length(gl_PointCoord - vec2(0.5));
+    if (dist > 0.5) discard;
+    
+    float alpha = smoothstep(0.5, 0.0, dist) * vOpacity;
+    gl_FragColor = vec4(0.7, 0.7, 0.75, alpha);
+  }
+`;
 
-  const { positions, sizes, opacities } = useMemo(() => {
+export const SmokeEffect = ({ 
+  active, 
+  candlePositions = [[0, 1.1, 0]] 
+}: SmokeEffectProps) => {
+  const pointsRef = useRef<THREE.Points>(null);
+  const materialRef = useRef<THREE.ShaderMaterial>(null);
+  const startTimeRef = useRef<number>(0);
+  
+  const particleCount = 80;
+
+  const { positions, velocities, lifetimes, sizes, opacities, origins } = useMemo(() => {
     const positions = new Float32Array(particleCount * 3);
+    const velocities: THREE.Vector3[] = [];
+    const lifetimes: number[] = [];
     const sizes = new Float32Array(particleCount);
     const opacities = new Float32Array(particleCount);
+    const origins: THREE.Vector3[] = [];
 
     for (let i = 0; i < particleCount; i++) {
-      particleData.current.push({
-        position: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.3,
-          0,
-          (Math.random() - 0.5) * 0.3
-        ),
-        velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.01,
-          0.02 + Math.random() * 0.02,
-          (Math.random() - 0.5) * 0.01
-        ),
-        life: Math.random(),
-        maxLife: 1 + Math.random(),
-        size: 0.05 + Math.random() * 0.05,
-      });
+      // Distribute particles across all candle positions
+      const candleIndex = i % candlePositions.length;
+      const candlePos = candlePositions[candleIndex];
+      
+      const offsetX = (Math.random() - 0.5) * 0.08;
+      const offsetZ = (Math.random() - 0.5) * 0.08;
+      
+      origins.push(new THREE.Vector3(
+        candlePos[0] + offsetX,
+        candlePos[1] + 0.2,
+        candlePos[2] + offsetZ
+      ));
+      
+      positions[i * 3] = origins[i].x;
+      positions[i * 3 + 1] = origins[i].y;
+      positions[i * 3 + 2] = origins[i].z;
+      
+      velocities.push(new THREE.Vector3(
+        (Math.random() - 0.5) * 0.02,
+        0.03 + Math.random() * 0.02,
+        (Math.random() - 0.5) * 0.02
+      ));
+      
+      lifetimes.push(Math.random());
+      sizes[i] = 8 + Math.random() * 6;
+      opacities[i] = 0;
     }
 
-    return { positions, sizes, opacities };
-  }, []);
+    return { positions, velocities, lifetimes, sizes, opacities, origins };
+  }, [candlePositions]);
 
-  useFrame((_, delta) => {
-    if (!particlesRef.current || !active) return;
+  useEffect(() => {
+    if (active) {
+      startTimeRef.current = Date.now();
+    }
+  }, [active]);
 
-    timeRef.current += delta;
+  useFrame(() => {
+    if (!pointsRef.current || !active) return;
 
-    const positionAttr = particlesRef.current.geometry.attributes.position;
-    const sizeAttr = particlesRef.current.geometry.attributes.size;
-    const opacityAttr = particlesRef.current.geometry.attributes.opacity;
+    const elapsed = (Date.now() - startTimeRef.current) / 1000;
+    const geometry = pointsRef.current.geometry;
+    const posAttr = geometry.attributes.position as THREE.BufferAttribute;
+    const sizeAttr = geometry.attributes.size as THREE.BufferAttribute;
+    const opacityAttr = geometry.attributes.opacity as THREE.BufferAttribute;
 
     for (let i = 0; i < particleCount; i++) {
-      const particle = particleData.current[i];
+      lifetimes[i] += 0.008;
 
-      particle.life += delta * 0.5;
-
-      if (particle.life >= particle.maxLife) {
-        particle.life = 0;
-        particle.position.set(
-          (Math.random() - 0.5) * 0.3,
-          0,
-          (Math.random() - 0.5) * 0.3
+      if (lifetimes[i] >= 1) {
+        lifetimes[i] = 0;
+        posAttr.setXYZ(i, origins[i].x, origins[i].y, origins[i].z);
+        velocities[i].set(
+          (Math.random() - 0.5) * 0.02,
+          0.03 + Math.random() * 0.02,
+          (Math.random() - 0.5) * 0.02
         );
       }
 
-      particle.position.add(particle.velocity.clone().multiplyScalar(delta * 30));
-      particle.position.x += Math.sin(timeRef.current * 2 + i) * 0.002;
+      // Update position with curling motion
+      const curl = Math.sin(lifetimes[i] * Math.PI * 2 + i) * 0.003;
+      posAttr.setX(i, posAttr.getX(i) + velocities[i].x + curl);
+      posAttr.setY(i, posAttr.getY(i) + velocities[i].y);
+      posAttr.setZ(i, posAttr.getZ(i) + velocities[i].z + curl * 0.5);
 
-      const lifeRatio = particle.life / particle.maxLife;
+      // Size grows as particle rises
+      const lifeRatio = lifetimes[i];
+      sizeAttr.setX(i, (8 + Math.random() * 4) * (1 + lifeRatio * 2.5));
 
-      positionAttr.setXYZ(
-        i,
-        position[0] + particle.position.x,
-        position[1] + particle.position.y,
-        position[2] + particle.position.z
-      );
-
-      sizeAttr.setX(i, particle.size * (1 + lifeRatio * 2));
-      opacityAttr.setX(i, Math.max(0, 0.6 * (1 - lifeRatio)));
+      // Opacity: fade in quickly, then slowly fade out
+      const fadeIn = Math.min(lifeRatio * 5, 1);
+      const fadeOut = Math.max(0, 1 - (lifeRatio - 0.3) / 0.7);
+      const baseOpacity = elapsed < 3 ? 1 : Math.max(0, 1 - (elapsed - 3) / 2);
+      opacityAttr.setX(i, fadeIn * fadeOut * 0.5 * baseOpacity);
     }
 
-    positionAttr.needsUpdate = true;
+    posAttr.needsUpdate = true;
     sizeAttr.needsUpdate = true;
     opacityAttr.needsUpdate = true;
   });
@@ -95,7 +135,7 @@ export const SmokeEffect = ({ active, position = [0, 1.5, 0] }: SmokeEffectProps
   if (!active) return null;
 
   return (
-    <points ref={particlesRef}>
+    <points ref={pointsRef}>
       <bufferGeometry>
         <bufferAttribute
           attach="attributes-position"
@@ -116,13 +156,13 @@ export const SmokeEffect = ({ active, position = [0, 1.5, 0] }: SmokeEffectProps
           itemSize={1}
         />
       </bufferGeometry>
-      <pointsMaterial
-        color="#cccccc"
-        size={0.1}
+      <shaderMaterial
+        ref={materialRef}
+        vertexShader={smokeVertexShader}
+        fragmentShader={smokeFragmentShader}
         transparent
-        opacity={0.5}
         depthWrite={false}
-        blending={THREE.AdditiveBlending}
+        blending={THREE.NormalBlending}
       />
     </points>
   );
