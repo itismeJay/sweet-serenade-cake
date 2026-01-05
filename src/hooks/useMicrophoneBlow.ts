@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface UseMicrophoneBlowOptions {
   threshold?: number;
-  sustainedDuration?: number; // How long blow must be sustained (ms)
+  sustainedDuration?: number;
   onBlowStart?: () => void;
   onBlowProgress?: (intensity: number) => void;
   onBlowComplete?: () => void;
@@ -12,12 +12,12 @@ interface UseMicrophoneBlowOptions {
 interface BlowAnalysis {
   isBlowing: boolean;
   intensity: number;
-  progress: number; // 0-1 progress toward complete blow
+  progress: number;
 }
 
 export const useMicrophoneBlow = ({
-  threshold = 0.12,
-  sustainedDuration = 800, // Require ~0.8 seconds of sustained blowing
+  threshold = 0.08, // Lower threshold for easier detection
+  sustainedDuration = 600, // Shorter duration for better UX
   onBlowStart,
   onBlowProgress,
   onBlowComplete,
@@ -36,81 +36,75 @@ export const useMicrophoneBlow = ({
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
   
   // Blow detection state
   const blowStartTimeRef = useRef<number | null>(null);
   const blowCompletedRef = useRef(false);
   const smoothedIntensityRef = useRef(0);
-  const consecutiveBlowFramesRef = useRef(0);
+  const isActiveRef = useRef(false);
 
   const cleanup = useCallback(() => {
+    isActiveRef.current = false;
+    
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
+    
+    if (sourceRef.current) {
+      try {
+        sourceRef.current.disconnect();
+      } catch (e) {
+        // Ignore disconnect errors
+      }
+      sourceRef.current = null;
+    }
+    
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
     }
+    
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-      audioContextRef.current.close();
+      audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
+    
     analyserRef.current = null;
     setIsListening(false);
   }, []);
 
-  const analyzeBlowCharacteristics = useCallback((dataArray: Uint8Array): { isBlowLike: boolean; intensity: number } => {
+  const analyzeAudio = useCallback((dataArray: Uint8Array): { isBlowLike: boolean; intensity: number } => {
     const bufferLength = dataArray.length;
     
-    // Split frequency spectrum into bands
-    const lowFreqEnd = Math.floor(bufferLength * 0.15); // 0-15% = low frequencies (blowing characteristic)
-    const midFreqEnd = Math.floor(bufferLength * 0.5);  // 15-50% = mid frequencies
-    
-    // Calculate energy in different frequency bands
-    let lowFreqEnergy = 0;
-    let midFreqEnergy = 0;
-    let highFreqEnergy = 0;
+    // Calculate RMS (root mean square) for overall volume
+    let sum = 0;
+    let lowSum = 0;
+    const lowEnd = Math.floor(bufferLength * 0.2);
     
     for (let i = 0; i < bufferLength; i++) {
-      const value = dataArray[i] / 255;
-      if (i < lowFreqEnd) {
-        lowFreqEnergy += value * value;
-      } else if (i < midFreqEnd) {
-        midFreqEnergy += value * value;
-      } else {
-        highFreqEnergy += value * value;
+      const normalized = dataArray[i] / 255;
+      sum += normalized * normalized;
+      
+      if (i < lowEnd) {
+        lowSum += normalized * normalized;
       }
     }
     
-    // Normalize by band size
-    lowFreqEnergy = Math.sqrt(lowFreqEnergy / lowFreqEnd);
-    midFreqEnergy = Math.sqrt(midFreqEnergy / (midFreqEnd - lowFreqEnd));
-    highFreqEnergy = Math.sqrt(highFreqEnergy / (bufferLength - midFreqEnd));
+    const rms = Math.sqrt(sum / bufferLength);
+    const lowRms = Math.sqrt(lowSum / lowEnd);
     
-    // Blowing characteristics:
-    // - High energy in low frequencies
-    // - Moderate energy in mid frequencies
-    // - Lower energy in high frequencies
-    // - Sustained noise pattern (not sharp like voice)
-    
-    const totalEnergy = lowFreqEnergy + midFreqEnergy + highFreqEnergy;
-    const lowFreqRatio = lowFreqEnergy / (totalEnergy + 0.001);
-    
-    // Blowing has more low-frequency content than speech
-    const isBlowLike = lowFreqRatio > 0.35 && totalEnergy > threshold;
-    
-    // Calculate overall intensity weighted toward low frequencies
-    const intensity = lowFreqEnergy * 0.6 + midFreqEnergy * 0.3 + highFreqEnergy * 0.1;
+    // Blowing typically has more energy in low frequencies
+    // and a sustained noise pattern
+    const isBlowLike = rms > threshold && lowRms > threshold * 0.7;
+    const intensity = rms * 2; // Scale up for visibility
     
     return { isBlowLike, intensity };
   }, [threshold]);
 
   const detectBlow = useCallback(() => {
-    if (!analyserRef.current || !enabled || blowCompletedRef.current) {
-      if (enabled && !blowCompletedRef.current) {
-        animationFrameRef.current = requestAnimationFrame(detectBlow);
-      }
+    if (!isActiveRef.current || !analyserRef.current || blowCompletedRef.current) {
       return;
     }
 
@@ -118,49 +112,41 @@ export const useMicrophoneBlow = ({
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(dataArray);
 
-    const { isBlowLike, intensity } = analyzeBlowCharacteristics(dataArray);
+    const { isBlowLike, intensity } = analyzeAudio(dataArray);
     
-    // Smooth the intensity for more stable readings
-    const smoothingFactor = 0.3;
-    smoothedIntensityRef.current = smoothedIntensityRef.current * (1 - smoothingFactor) + intensity * smoothingFactor;
+    // Smooth the intensity
+    smoothedIntensityRef.current = smoothedIntensityRef.current * 0.7 + intensity * 0.3;
     
     const currentTime = Date.now();
     
-    if (isBlowLike && smoothedIntensityRef.current > threshold) {
-      consecutiveBlowFramesRef.current++;
-      
-      // Start tracking blow time after a few consistent frames
-      if (consecutiveBlowFramesRef.current >= 3 && !blowStartTimeRef.current) {
+    if (isBlowLike) {
+      // Start tracking if not already
+      if (!blowStartTimeRef.current) {
         blowStartTimeRef.current = currentTime;
         onBlowStart?.();
       }
       
-      if (blowStartTimeRef.current) {
-        const blowDuration = currentTime - blowStartTimeRef.current;
-        const progress = Math.min(blowDuration / sustainedDuration, 1);
-        
-        setBlowAnalysis({
-          isBlowing: true,
-          intensity: smoothedIntensityRef.current,
-          progress,
-        });
-        
-        onBlowProgress?.(progress);
-        
-        // Complete blow detection
-        if (progress >= 1 && !blowCompletedRef.current) {
-          blowCompletedRef.current = true;
-          onBlowComplete?.();
-          return; // Stop the loop
-        }
+      const blowDuration = currentTime - blowStartTimeRef.current;
+      const progress = Math.min(blowDuration / sustainedDuration, 1);
+      
+      setBlowAnalysis({
+        isBlowing: true,
+        intensity: smoothedIntensityRef.current,
+        progress,
+      });
+      
+      onBlowProgress?.(progress);
+      
+      // Complete blow detection
+      if (progress >= 1 && !blowCompletedRef.current) {
+        blowCompletedRef.current = true;
+        onBlowComplete?.();
+        cleanup();
+        return;
       }
     } else {
-      // Reset if blow is interrupted (allow small gaps)
-      if (consecutiveBlowFramesRef.current > 0) {
-        consecutiveBlowFramesRef.current--;
-      }
-      
-      if (consecutiveBlowFramesRef.current === 0) {
+      // Reset if blow stops
+      if (blowStartTimeRef.current) {
         blowStartTimeRef.current = null;
         setBlowAnalysis({
           isBlowing: false,
@@ -170,16 +156,20 @@ export const useMicrophoneBlow = ({
       }
     }
 
-    animationFrameRef.current = requestAnimationFrame(detectBlow);
-  }, [threshold, sustainedDuration, onBlowStart, onBlowProgress, onBlowComplete, enabled, analyzeBlowCharacteristics]);
+    if (isActiveRef.current) {
+      animationFrameRef.current = requestAnimationFrame(detectBlow);
+    }
+  }, [sustainedDuration, onBlowStart, onBlowProgress, onBlowComplete, analyzeAudio, cleanup]);
 
   const startListening = useCallback(async () => {
     try {
+      cleanup();
       setError(null);
       blowCompletedRef.current = false;
       blowStartTimeRef.current = null;
-      consecutiveBlowFramesRef.current = 0;
       smoothedIntensityRef.current = 0;
+      
+      console.log('Requesting microphone access...');
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { 
@@ -189,28 +179,38 @@ export const useMicrophoneBlow = ({
         } 
       });
       
+      console.log('Microphone access granted');
       streamRef.current = stream;
       setHasPermission(true);
 
-      const audioContext = new AudioContext();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       audioContextRef.current = audioContext;
 
+      // Resume audio context if suspended
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 512; // More frequency resolution
-      analyser.smoothingTimeConstant = 0.4; // Moderate smoothing
+      analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = 0.5;
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);
       source.connect(analyser);
+      sourceRef.current = source;
 
+      isActiveRef.current = true;
       setIsListening(true);
+      
+      console.log('Started listening for blow...');
       detectBlow();
     } catch (err) {
       console.error('Microphone access error:', err);
       setError('Could not access microphone. Please allow microphone access and try again.');
       setHasPermission(false);
     }
-  }, [detectBlow]);
+  }, [detectBlow, cleanup]);
 
   const stopListening = useCallback(() => {
     cleanup();
@@ -219,7 +219,6 @@ export const useMicrophoneBlow = ({
   const resetBlowDetection = useCallback(() => {
     blowCompletedRef.current = false;
     blowStartTimeRef.current = null;
-    consecutiveBlowFramesRef.current = 0;
     smoothedIntensityRef.current = 0;
     setBlowAnalysis({ isBlowing: false, intensity: 0, progress: 0 });
   }, []);

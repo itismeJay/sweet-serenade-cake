@@ -91,10 +91,10 @@ export const BirthdayExperience = () => {
         {showRomanticScene && (
           <div className="text-center animate-fade-in mb-2">
             <h2 className="text-3xl md:text-5xl font-display text-gold mb-2">
-              ✨ A Magical Night For You ✨
+              🌅 Watching The Sunrise With You 🌅
             </h2>
             <p className="text-lg md:text-xl text-foreground/70 font-elegant">
-              The stars are shining just for you
+              Love petals fall as we dream together
             </p>
           </div>
         )}

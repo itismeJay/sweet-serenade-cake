@@ -188,19 +188,19 @@ export const BlowControls = ({
           <div className="flex items-center justify-center gap-2 mb-2">
             <Sparkles className="w-6 h-6 text-gold animate-pulse" />
             <p className="text-2xl md:text-3xl font-display text-gold">
-              Your wish has been sent to the stars
+              Your wish floats into the sunrise
             </p>
             <Sparkles className="w-6 h-6 text-gold animate-pulse" />
           </div>
           
           <p className="text-lg md:text-xl font-elegant text-foreground/90 italic max-w-lg mx-auto leading-relaxed">
-            "Under the stars, by the sea, my love for you is as endless as the ocean"
+            "As the sun rises, so does my love for you - endless and eternal"
           </p>
           
           <div className="flex justify-center gap-2 mt-6">
-            <span className="text-2xl animate-float" style={{ animationDelay: '0s' }}>🌙</span>
+            <span className="text-2xl animate-float" style={{ animationDelay: '0s' }}>🌅</span>
             <span className="text-2xl animate-float" style={{ animationDelay: '0.3s' }}>💕</span>
-            <span className="text-2xl animate-float" style={{ animationDelay: '0.6s' }}>🌊</span>
+            <span className="text-2xl animate-float" style={{ animationDelay: '0.6s' }}>🌹</span>
           </div>
           
           <Button
