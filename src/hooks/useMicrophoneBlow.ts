@@ -16,8 +16,8 @@ interface BlowAnalysis {
 }
 
 export const useMicrophoneBlow = ({
-  threshold = 0.08, // Lower threshold for easier detection
-  sustainedDuration = 600, // Shorter duration for better UX
+  threshold = 1, // Higher threshold for harder blow detection
+  sustainedDuration = 1000, // 1 second sustained blow required
   onBlowStart,
   onBlowProgress,
   onBlowComplete,

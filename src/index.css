@@ -252,6 +252,27 @@
   animation: fade-in 1s ease-out forwards;
 }
 
+@keyframes petal-fall {
+  0% {
+    transform: translateY(-10%) rotate(0deg) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg) translateX(50px);
+    opacity: 0;
+  }
+}
+
+.animate-petal-fall {
+  animation: petal-fall 8s linear infinite;
+}
+
 /* Duration utility for transitions */
 .duration-2000 {
   transition-duration: 2000ms;
