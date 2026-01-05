@@ -439,11 +439,7 @@ const Ribbon = ({ position, radius }: { position: [number, number, number]; radi
 export const Cake3D = ({ candlesLit, blowIntensity = 0, photoUrl }: Cake3DProps) => {
   const cakeRef = useRef<THREE.Group>(null);
 
-  useFrame((state) => {
-    if (cakeRef.current) {
-      cakeRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.2) * 0.03;
-    }
-  });
+  // Remove rotation - keep cake and plate static
 
   const candlePositions: [number, number, number][] = [
     [0, 0.92, 0],
