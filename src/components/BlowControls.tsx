@@ -30,8 +30,8 @@ export const BlowControls = ({
     stopListening,
     resetBlowDetection 
   } = useMicrophoneBlow({
-    threshold: 0.12,
-    sustainedDuration: 800,
+    threshold: 0.045,
+    sustainedDuration: 1000,
     onBlowStart: () => {
       console.log('Blow started!');
     },

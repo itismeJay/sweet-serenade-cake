@@ -16,7 +16,7 @@ interface BlowAnalysis {
 }
 
 export const useMicrophoneBlow = ({
-  threshold = 1, // Higher threshold for harder blow detection
+  threshold = 0.045, // RMS threshold (0..1). Lower = easier detection
   sustainedDuration = 1000, // 1 second sustained blow required
   onBlowStart,
   onBlowProgress,
@@ -75,31 +75,18 @@ export const useMicrophoneBlow = ({
     setIsListening(false);
   }, []);
 
-  const analyzeAudio = useCallback((dataArray: Uint8Array): { isBlowLike: boolean; intensity: number } => {
-    const bufferLength = dataArray.length;
-    
-    // Calculate RMS (root mean square) for overall volume
+  const analyzeAudio = useCallback((timeData: Uint8Array): { isBlowLike: boolean; intensity: number } => {
+    // Time-domain RMS (more reliable for "loudness" than frequency-bin RMS)
     let sum = 0;
-    let lowSum = 0;
-    const lowEnd = Math.floor(bufferLength * 0.2);
-    
-    for (let i = 0; i < bufferLength; i++) {
-      const normalized = dataArray[i] / 255;
-      sum += normalized * normalized;
-      
-      if (i < lowEnd) {
-        lowSum += normalized * normalized;
-      }
+    for (let i = 0; i < timeData.length; i++) {
+      const v = (timeData[i] - 128) / 128; // -1..1
+      sum += v * v;
     }
-    
-    const rms = Math.sqrt(sum / bufferLength);
-    const lowRms = Math.sqrt(lowSum / lowEnd);
-    
-    // Blowing typically has more energy in low frequencies
-    // and a sustained noise pattern
-    const isBlowLike = rms > threshold && lowRms > threshold * 0.7;
-    const intensity = rms * 2; // Scale up for visibility
-    
+    const rms = Math.sqrt(sum / timeData.length); // 0..1
+
+    const isBlowLike = rms > threshold;
+    const intensity = rms * 2; // scale for UI/visuals
+
     return { isBlowLike, intensity };
   }, [threshold]);
 
@@ -109,10 +96,10 @@ export const useMicrophoneBlow = ({
     }
 
     const analyser = analyserRef.current;
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteFrequencyData(dataArray);
+    const timeArray = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(timeArray);
 
-    const { isBlowLike, intensity } = analyzeAudio(dataArray);
+    const { isBlowLike, intensity } = analyzeAudio(timeArray);
     
     // Smooth the intensity
     smoothedIntensityRef.current = smoothedIntensityRef.current * 0.7 + intensity * 0.3;
@@ -192,8 +179,8 @@ export const useMicrophoneBlow = ({
       }
 
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 256;
-      analyser.smoothingTimeConstant = 0.5;
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.8;
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);
