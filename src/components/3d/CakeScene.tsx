@@ -5,17 +5,9 @@ import { Cake3D } from './Cake3D';
 import { SmokeEffect } from './SmokeEffect';
 import { RomanticScene } from './RomanticScene';
 import * as THREE from 'three';
-import { Loader2 } from 'lucide-react';
 
-// Loading component
-const LoadingFallback = () => (
-  <div className="absolute inset-0 flex items-center justify-center bg-blush/50 backdrop-blur-sm">
-    <div className="flex flex-col items-center gap-3">
-      <Loader2 className="w-10 h-10 text-rose animate-spin" />
-      <p className="text-lg font-display text-rose">Loading your cake...</p>
-    </div>
-  </div>
-);
+
+// Loading component - removed as it was blocking the cake
 
 interface CakeSceneProps {
   candlesLit: boolean;
@@ -142,7 +134,6 @@ export const CakeScene = ({
 
   return (
     <div className={`w-full h-[650px] md:h-[750px] relative ${!showRomanticScene ? 'rounded-2xl overflow-hidden shadow-romantic' : ''}`}>
-      {!showRomanticScene && <LoadingFallback />}
       <Canvas
         shadows
         dpr={[1, 2]}
