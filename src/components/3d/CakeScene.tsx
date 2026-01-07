@@ -7,9 +7,9 @@ import { RomanticScene } from './RomanticScene';
 import * as THREE from 'three';
 import { Loader2 } from 'lucide-react';
 
-// Loading component
+// Loading component with warm orange tint
 const LoadingFallback = () => (
-  <div className="absolute inset-0 flex items-center justify-center bg-blush/50 backdrop-blur-sm">
+  <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-orange-50 to-rose-50 backdrop-blur-sm">
     <div className="flex flex-col items-center gap-3">
       <Loader2 className="w-10 h-10 text-rose animate-spin" />
       <p className="text-lg font-display text-rose">Loading your cake...</p>
@@ -105,7 +105,7 @@ export const CakeScene = ({
   blowIntensity = 0,
   photoUrl
 }: CakeSceneProps) => {
-  const [bgColor, setBgColor] = useState('#fdf2f8');
+  const [bgColor, setBgColor] = useState('#fff5ee'); // Warm seashell color
   const [transitioning, setTransitioning] = useState(false);
 
   useEffect(() => {
@@ -128,7 +128,7 @@ export const CakeScene = ({
       setTimeout(() => setTransitioning(false), 2000);
       return () => clearInterval(colorTransition);
     } else {
-      setBgColor('#fdf2f8');
+      setBgColor('#fff5ee'); // Warm seashell color
     }
   }, [showRomanticScene]);
 

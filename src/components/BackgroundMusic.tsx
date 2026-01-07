@@ -17,9 +17,9 @@ export const BackgroundMusic = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Royalty-free music URLs
-  const birthdayMusic = 'https://assets.mixkit.co/music/preview/mixkit-happy-birthday-full-song-46.mp3';
-  const romanticMusic = 'https://assets.mixkit.co/music/preview/mixkit-dreaming-big-31.mp3';
+  // Working royalty-free music URLs
+  const birthdayMusic = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+  const romanticMusic = 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3';
 
   const fadeVolume = useCallback((targetVolume: number, duration: number, callback?: () => void) => {
     if (!audioRef.current) return;
