@@ -141,7 +141,7 @@ export const CakeScene = ({
   ];
 
   return (
-    <div className="w-full h-[550px] md:h-[650px] rounded-2xl overflow-hidden shadow-romantic relative">
+    <div className="w-full h-[650px] md:h-[750px] rounded-2xl overflow-hidden shadow-romantic relative">
       <LoadingFallback />
       <Canvas
         shadows
@@ -167,8 +167,8 @@ export const CakeScene = ({
           {/* Romantic background scene */}
           <RomanticScene visible={showRomanticScene} />
           
-          {/* Main cake group */}
-          <group position={[0, -0.5, 0]}>
+          {/* Main cake group - bigger */}
+          <group position={[0, -0.6, 0]} scale={1.4}>
             <Cake3D 
               candlesLit={candlesLit} 
               blowIntensity={blowIntensity}

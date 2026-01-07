@@ -30,7 +30,7 @@ export const BlowControls = ({
     stopListening,
     resetBlowDetection 
   } = useMicrophoneBlow({
-    threshold: 0.045,
+    threshold: 0.052,
     sustainedDuration: 1000,
     onBlowStart: () => {
       console.log('Blow started!');
@@ -185,29 +185,11 @@ export const BlowControls = ({
         </>
       ) : showRomanticScene ? (
         <div className="text-center space-y-4 animate-fade-in">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="w-6 h-6 text-gold animate-pulse" />
-            <p className="text-2xl md:text-3xl font-display text-gold">
-              Your wish floats into the sunrise
-            </p>
-            <Sparkles className="w-6 h-6 text-gold animate-pulse" />
-          </div>
-          
-          <p className="text-lg md:text-xl font-elegant text-foreground/90 italic max-w-lg mx-auto leading-relaxed">
-            "As the sun rises, so does my love for you - endless and eternal"
-          </p>
-          
-          <div className="flex justify-center gap-2 mt-6">
-            <span className="text-2xl animate-float" style={{ animationDelay: '0s' }}>🌅</span>
-            <span className="text-2xl animate-float" style={{ animationDelay: '0.3s' }}>💕</span>
-            <span className="text-2xl animate-float" style={{ animationDelay: '0.6s' }}>🌹</span>
-          </div>
-          
           <Button
             onClick={handleReset}
             variant="outline"
             size="lg"
-            className="mt-6 gap-2 border-gold/50 text-gold hover:bg-gold/10"
+            className="mt-6 gap-2 border-white/50 text-white hover:bg-white/10"
           >
             🎂 Light the Candles Again
           </Button>
