@@ -18,7 +18,7 @@ export const BirthdayMessage = () => {
         Happy Birthday
       </h1>
       <p className="font-elegant text-2xl md:text-3xl text-muted-foreground italic mb-2">
-        To My Beautiful Love
+        To My Beautiful Love Lucienne
       </p>
       <div className="flex items-center justify-center gap-3 mt-6">
         {[...Array(5)].map((_, i) => (

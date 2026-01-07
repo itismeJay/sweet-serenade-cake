@@ -60,14 +60,10 @@ export const BirthdayExperience = () => {
         }}
       />
       
-      {/* Dark overlay for romantic mood */}
-      <div 
-        className={`fixed inset-0 transition-all duration-[3000ms] ease-in-out ${
-          showRomanticScene 
-            ? 'bg-black/40' 
-            : 'bg-gradient-to-b from-pink-100 via-rose-50 to-amber-50'
-        }`}
-      />
+      {/* Background overlay - celebration mode only */}
+      {!showRomanticScene && (
+        <div className="fixed inset-0 bg-gradient-to-b from-pink-100 via-rose-50 to-amber-50" />
+      )}
 
       {/* Background effects for celebration mode */}
       {!showRomanticScene && (
@@ -174,9 +170,6 @@ export const BirthdayExperience = () => {
               <div className="absolute -top-3 -right-3 text-3xl animate-float">❤️</div>
               <div className="absolute -bottom-3 -left-3 text-3xl animate-float" style={{ animationDelay: '0.5s' }}>💕</div>
             </div>
-            <p className="text-center mt-4 text-white/90 text-lg font-elegant drop-shadow-lg">
-              ✨ Forever & Always ✨
-            </p>
           </div>
         )}
 
