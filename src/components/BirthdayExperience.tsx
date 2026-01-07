@@ -60,6 +60,11 @@ export const BirthdayExperience = () => {
         }}
       />
       
+      {/* Darker overlay for romantic sunset */}
+      {showRomanticScene && (
+        <div className="fixed inset-0 bg-black/30 transition-opacity duration-[3000ms]" />
+      )}
+      
       {/* Background overlay - celebration mode only */}
       {!showRomanticScene && (
         <div className="fixed inset-0 bg-gradient-to-b from-pink-100 via-rose-50 to-amber-50" />

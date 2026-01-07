@@ -141,13 +141,13 @@ export const CakeScene = ({
   ];
 
   return (
-    <div className="w-full h-[650px] md:h-[750px] rounded-2xl overflow-hidden shadow-romantic relative">
-      <LoadingFallback />
+    <div className={`w-full h-[650px] md:h-[750px] relative ${!showRomanticScene ? 'rounded-2xl overflow-hidden shadow-romantic' : ''}`}>
+      {!showRomanticScene && <LoadingFallback />}
       <Canvas
         shadows
         dpr={[1, 2]}
         style={{ 
-          background: bgColor, 
+          background: showRomanticScene ? 'transparent' : bgColor, 
           transition: 'background 2s ease-in-out' 
         }}
         gl={{ antialias: true, alpha: true }}
